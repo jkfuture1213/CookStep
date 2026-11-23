@@ -28,7 +28,8 @@ async function cropToSquare(photo) {
 }
 
 // 요리를 다 만든 뒤 완성 사진을 찍는 화면입니다.
-export default function PhotoScreen({ cookedId, dishName, onDone }) {
+// onEvaluate(photo): 사진을 저장한 뒤 AI 평가 화면으로 넘어갈 때 부릅니다.
+export default function PhotoScreen({ cookedId, dishName, onDone, onEvaluate }) {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
   const [cameraReady, setCameraReady] = useState(false);
@@ -52,12 +53,17 @@ export default function PhotoScreen({ cookedId, dishName, onDone }) {
     }
   }
 
-  async function handleSave() {
+  // 사진을 Firebase에 저장합니다. evaluate가 true면 저장 후 AI 평가 화면으로 갑니다.
+  async function handleSave(evaluate) {
     setError('');
     setBusy(true);
     try {
       await saveCookedPhoto(cookedId, photo.base64);
-      onDone();
+      if (evaluate) {
+        onEvaluate(photo);
+      } else {
+        onDone();
+      }
     } catch (e) {
       setError(getSaveErrorMessage(e));
       setBusy(false);
@@ -119,14 +125,14 @@ export default function PhotoScreen({ cookedId, dishName, onDone }) {
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              onPress={handleSave}
+              onPress={() => handleSave(true)}
               disabled={busy}
               style={({ pressed }) => [styles.button, styles.primary, styles.grow, pressed && styles.pressed]}
             >
               {busy ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={[styles.buttonText, styles.primaryText]}>저장하기</Text>
+                <Text style={[styles.buttonText, styles.primaryText]}>음식 평가</Text>
               )}
             </Pressable>
           </View>
@@ -146,9 +152,15 @@ export default function PhotoScreen({ cookedId, dishName, onDone }) {
           </Pressable>
         )}
 
-        <Pressable accessibilityRole="button" onPress={onDone} disabled={busy} hitSlop={8}>
-          <Text style={styles.skip}>사진 없이 넘어가기</Text>
-        </Pressable>
+        {photo ? (
+          <Pressable accessibilityRole="button" onPress={() => handleSave(false)} disabled={busy} hitSlop={8}>
+            <Text style={styles.skip}>평가 없이 사진만 저장하기</Text>
+          </Pressable>
+        ) : (
+          <Pressable accessibilityRole="button" onPress={onDone} disabled={busy} hitSlop={8}>
+            <Text style={styles.skip}>사진 없이 넘어가기</Text>
+          </Pressable>
+        )}
       </View>
     </SafeAreaView>
   );

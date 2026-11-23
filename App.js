@@ -9,6 +9,7 @@ import { colors } from './src/theme';
 import CookingScreen from './src/screens/CookingScreen';
 import { MyPageContext } from './src/components/UserMenu';
 import DishScreen from './src/screens/DishScreen';
+import EvaluationScreen from './src/screens/EvaluationScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import IngredientScreen from './src/screens/IngredientScreen';
 import LoginScreen from './src/screens/LoginScreen';
@@ -26,8 +27,10 @@ export default function App() {
   const [selectedDishId, setSelectedDishId] = useState(null);
   // 마이페이지에서 뒤로 가면 돌아갈 화면
   const [screenBeforeMyPage, setScreenBeforeMyPage] = useState('ingredients');
-  // 방금 완료한 요리 기록 (사진 화면에서 사용) 예: { id: 'abc', dishName: '삶은 계란' }
+  // 방금 완료한 요리 기록 (사진·평가 화면에서 사용) 예: { id: 'abc', dishId: 'boiled-egg', dishName: '삶은 계란' }
   const [justCooked, setJustCooked] = useState(null);
+  // 방금 찍은 완성 사진 { uri, base64 } (평가 화면에서 사용)
+  const [justPhoto, setJustPhoto] = useState(null);
 
   useEffect(() => {
     if (!auth) {
@@ -80,17 +83,32 @@ export default function App() {
         dishId={selectedDishId}
         onExit={() => setScreen('dishes')}
         onFinish={(cookedId, dishName) => {
-          setJustCooked({ id: cookedId, dishName });
+          setJustCooked({ id: cookedId, dishId: selectedDishId, dishName });
           setScreen('photo');
         }}
       />
     );
   } else if (user && screen === 'photo') {
-    // 사진을 저장하거나 건너뛰면 음식 선택 화면으로 돌아갑니다.
+    // 사진만 저장하거나 건너뛰면 음식 선택 화면으로, 음식 평가를 누르면 평가 화면으로 갑니다.
     content = (
       <PhotoScreen
         cookedId={justCooked?.id}
         dishName={justCooked?.dishName}
+        onDone={() => setScreen('dishes')}
+        onEvaluate={(photo) => {
+          setJustPhoto(photo);
+          setScreen('evaluation');
+        }}
+      />
+    );
+  } else if (user && screen === 'evaluation') {
+    // AI 평가를 보고 완료를 누르면 음식 선택 화면으로 돌아갑니다.
+    content = (
+      <EvaluationScreen
+        cookedId={justCooked?.id}
+        dishId={justCooked?.dishId}
+        dishName={justCooked?.dishName}
+        photo={justPhoto}
         onDone={() => setScreen('dishes')}
       />
     );

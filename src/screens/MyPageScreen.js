@@ -4,12 +4,14 @@ import {
   FlatList,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import EvaluationCard from '../components/EvaluationCard';
 import { getLoadErrorMessage, loadCookedDishes, loadCookedPhoto } from '../cookingHistory';
 import { colors } from '../theme';
 
@@ -75,7 +77,7 @@ function CookedDishDetail({ item, onBack }) {
         <View style={styles.side} />
       </View>
 
-      <View style={styles.detail}>
+      <ScrollView contentContainerStyle={styles.detail}>
         <Text style={styles.detailLabel}>만든 날짜</Text>
         <Text style={styles.detailDate}>{formatDateTime(item.completedAt)}</Text>
 
@@ -88,7 +90,13 @@ function CookedDishDetail({ item, onBack }) {
             <Text style={styles.noPhoto}>{error || '사진을 찍지 않았어요 📷'}</Text>
           )}
         </View>
-      </View>
+
+        {item.evaluation ? (
+          <View style={styles.evaluation}>
+            <EvaluationCard evaluation={item.evaluation} />
+          </View>
+        ) : null}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -162,6 +170,7 @@ export default function MyPageScreen({ user, onBack }) {
               <Text style={styles.dishName}>
                 {item.dishName}
                 {item.hasPhoto ? '  📷' : ''}
+                {item.evaluation ? `  ★${item.evaluation.score}` : ''}
               </Text>
               <Text style={styles.date}>{formatDate(item.completedAt)}  ›</Text>
             </Pressable>
@@ -240,7 +249,11 @@ const styles = StyleSheet.create({
   },
   detail: {
     paddingHorizontal: 24,
+    paddingBottom: 32,
     gap: 6,
+  },
+  evaluation: {
+    marginTop: 18,
   },
   detailLabel: {
     fontSize: 14,

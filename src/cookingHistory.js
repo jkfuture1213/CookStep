@@ -20,6 +20,7 @@ const PHOTO_SAVE_TIMEOUT_MS = 20000;
 // 저장 위치
 // - 요리 기록: users/{uid}/cookedDishes/{기록 id}  → { dishId, dishName, completedAt, hasPhoto }
 // - 요리 사진: users/{uid}/cookedPhotos/{기록 id}  → { data: JPEG base64 문자열, createdAt }
+// - AI 평가: 요리 기록의 evaluation 필드 → { score, summary, improvements, evaluatedAt }
 // 사진은 목록을 불러올 때마다 같이 받으면 느려지므로 따로 저장하고, 볼 때만 불러옵니다.
 
 function getContext() {
@@ -70,6 +71,17 @@ export async function saveCookedPhoto(cookedId, base64) {
   );
 }
 
+// AI 평가 결과를 요리 기록에 저장합니다.
+export async function saveEvaluation(cookedId, evaluation) {
+  const { db, uid } = getContext();
+  await withTimeout(
+    updateDoc(doc(db, 'users', uid, 'cookedDishes', cookedId), {
+      evaluation: { ...evaluation, evaluatedAt: serverTimestamp() },
+    }),
+    SAVE_TIMEOUT_MS
+  );
+}
+
 // 요리 기록에 연결된 사진을 불러옵니다. 사진이 없으면 null.
 export async function loadCookedPhoto(cookedId) {
   const { db, uid } = getContext();
@@ -89,7 +101,7 @@ export function getSaveErrorMessage(error) {
 }
 
 // 지금까지 만든 요리 기록을 최근 것부터 가져옵니다.
-// 돌려주는 값 예: [{ id: 'abc', dishName: '삶은 계란', completedAt: Date, hasPhoto: true }]
+// 돌려주는 값 예: [{ id: 'abc', dishName: '삶은 계란', completedAt: Date, hasPhoto: true, evaluation: {...} }]
 export async function loadCookedDishes() {
   const user = auth?.currentUser;
   if (!user) {
@@ -108,6 +120,7 @@ export async function loadCookedDishes() {
       dishName: data.dishName,
       completedAt: data.completedAt?.toDate ? data.completedAt.toDate() : null,
       hasPhoto: Boolean(data.hasPhoto),
+      evaluation: data.evaluation ?? null,
     };
   });
 }

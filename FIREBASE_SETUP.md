@@ -53,3 +53,13 @@ service cloud.firestore {
 
 5. 앱에서 삶은 계란을 끝까지 따라 하고 **완료**를 누른 뒤, 콘솔 **데이터** 탭에서
    `users > (내 uid) > cookedDishes` 아래에 요리 이름과 완료 시각이 생겼는지 확인합니다.
+
+## 7. AI 음식 평가(Firebase AI Logic) 켜기
+완성 사진의 **음식 평가**는 Firebase AI Logic으로 Google의 Gemini가 평가합니다. API 키는 필요 없고, 무료(Spark) 요금제에서 쓸 수 있습니다.
+
+1. Firebase 콘솔 왼쪽 메뉴에서 **AI Logic**(빌드 > AI Logic 또는 AI 메뉴 안)을 누르고 **시작하기**를 누릅니다.
+2. **Gemini Developer API**를 고르고, 안내에 따라 **API 사용 설정**을 누릅니다. (결제 등록이 필요 없는 쪽입니다.)
+3. 완료되면 앱을 새로고침하고, 사진을 찍은 뒤 **음식 평가**를 눌러 봅니다.
+
+- 무료 사용량에는 분당·하루 한도가 있어서, 짧은 시간에 많이 누르면 "무료 사용량을 잠시 다 썼어요"가 나올 수 있습니다.
+- 사용하는 모델 이름은 `src/config/aiConfig.js`에 있습니다(`gemini-3.8-flash`). 나중에 모델이 바뀌면 이 한 줄만 고치면 됩니다.
