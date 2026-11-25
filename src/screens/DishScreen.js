@@ -1,18 +1,40 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import UserMenu from '../components/UserMenu';
+import { loadCookedDishes } from '../cookingHistory';
 import { DISHES_BY_INGREDIENT } from '../data/dishes';
+import { RECIPES } from '../data/recipes';
+import { getUnlockedLevel, UNLOCK_SCORE } from '../progress';
 import { colors } from '../theme';
 import { INGREDIENTS } from './IngredientScreen';
 
-// 재료 선택 화면에서 고른 재료(selectedIds, 지금은 1개)로 만들 수 있는 요리를 세로로 보여 줍니다.
+// 재료 선택 화면에서 고른 재료(selectedIds, 지금은 1개)로 만들 수 있는 요리를 단계별로 보여 줍니다.
+// 요리 기록의 평가를 보고 어느 단계까지 열렸는지 정합니다(src/progress.js).
 export default function DishScreen({ selectedIds, onBack, onSelectDish }) {
   // 재료 선택 화면과 같은 순서(계란, 김치, 참치, 파스타)로 보여 줍니다.
   const ingredients = INGREDIENTS.filter((item) => selectedIds.includes(item.id));
   // 누른 요리는 선택 표시만 하고, 아래 "다음" 버튼을 눌러야 학습 화면으로 넘어갑니다.
   const [selectedDish, setSelectedDish] = useState(null);
+  const [records, setRecords] = useState(null); // null이면 기록을 불러오는 중
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    loadCookedDishes()
+      .then((list) => active && setRecords(list))
+      .catch((e) => {
+        console.warn('요리 기록 불러오기 오류', e);
+        if (active) {
+          setLoadError('기록을 불러오지 못해 1단계만 보여 드려요.');
+          setRecords([]);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function handleSelect(dish) {
     // 같은 요리를 다시 누르면 선택이 풀립니다.
@@ -41,37 +63,82 @@ export default function DishScreen({ selectedIds, onBack, onSelectDish }) {
                 <View style={styles.preparing}>
                   <Text style={styles.preparingText}>요리를 준비 중이에요</Text>
                 </View>
+              ) : records === null ? (
+                <ActivityIndicator style={styles.loading} color={colors.orange} />
               ) : (
-                dishes.map((dish) => {
-                  const isSelected = selectedDish?.id === dish.id;
+                (() => {
+                  const unlockedLevel = getUnlockedLevel(dishes, records);
+                  const current = dishes[unlockedLevel - 1];
+                  const next = dishes[unlockedLevel];
                   return (
-                    <Pressable
-                      key={dish.id}
-                      accessibilityRole="button"
-                      accessibilityState={{ disabled: !dish.enabled, selected: isSelected }}
-                      disabled={!dish.enabled}
-                      onPress={() => handleSelect(dish)}
-                      style={({ pressed }) => [
-                        styles.dishButton,
-                        isSelected && styles.dishSelected,
-                        !dish.enabled && styles.dishDisabled,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dishText,
-                          isSelected && styles.dishTextSelected,
-                          !dish.enabled && styles.dishTextDisabled,
-                        ]}
-                      >
-                        {dish.name}
-                      </Text>
-                      {!dish.enabled && <Text style={styles.soon}>준비 중</Text>}
-                      {isSelected && <Text style={styles.check}>✓</Text>}
-                    </Pressable>
+                    <>
+                      {next ? (
+                        <Text style={styles.hint}>
+                          {unlockedLevel}단계 {current.name}에서 AI 평가 별 {UNLOCK_SCORE}개 이상을 받으면{' '}
+                          {unlockedLevel + 1}단계 {next.name}이(가) 열려요.
+                        </Text>
+                      ) : (
+                        <Text style={styles.hint}>모든 단계가 열렸어요! 🎉</Text>
+                      )}
+                      {loadError ? <Text style={styles.hint}>{loadError}</Text> : null}
+
+                      {dishes.map((dish, index) => {
+                        const level = index + 1;
+                        const unlocked = level <= unlockedLevel;
+                        const hasRecipe = Boolean(RECIPES[dish.id]);
+                        const enabled = unlocked && hasRecipe;
+                        const isSelected = selectedDish?.id === dish.id;
+                        return (
+                          <Pressable
+                            key={dish.id}
+                            accessibilityRole="button"
+                            accessibilityState={{ disabled: !enabled, selected: isSelected }}
+                            disabled={!enabled}
+                            onPress={() => handleSelect(dish)}
+                            style={({ pressed }) => [
+                              styles.dishButton,
+                              isSelected && styles.dishSelected,
+                              !enabled && styles.dishDisabled,
+                              pressed && styles.pressed,
+                            ]}
+                          >
+                            <View style={styles.dishLeft}>
+                              <View
+                                style={[
+                                  styles.levelBadge,
+                                  isSelected && styles.levelBadgeSelected,
+                                  !enabled && styles.levelBadgeDisabled,
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.levelText,
+                                    isSelected && styles.levelTextSelected,
+                                    !enabled && styles.levelTextDisabled,
+                                  ]}
+                                >
+                                  {level}단계
+                                </Text>
+                              </View>
+                              <Text
+                                style={[
+                                  styles.dishText,
+                                  isSelected && styles.dishTextSelected,
+                                  !enabled && styles.dishTextDisabled,
+                                ]}
+                              >
+                                {dish.name}
+                              </Text>
+                            </View>
+                            {!unlocked && <Text style={styles.soon}>🔒 잠김</Text>}
+                            {unlocked && !hasRecipe && <Text style={styles.soon}>레시피 준비 중</Text>}
+                            {isSelected && <Text style={styles.check}>✓</Text>}
+                          </Pressable>
+                        );
+                      })}
+                    </>
                   );
-                })
+                })()
               )}
             </View>
           );
@@ -145,6 +212,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: colors.orange,
+  },
+  dishLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  levelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: '#FDE3D7',
+  },
+  levelBadgeSelected: {
+    backgroundColor: '#FFFFFF',
+  },
+  levelBadgeDisabled: {
+    backgroundColor: '#E2D8D1',
+  },
+  levelText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.orange,
+  },
+  levelTextSelected: {
+    color: colors.orange,
+  },
+  levelTextDisabled: {
+    color: '#A99D95',
+  },
+  hint: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textMuted,
+  },
+  loading: {
+    marginTop: 12,
   },
   dishSelected: {
     backgroundColor: colors.orange,

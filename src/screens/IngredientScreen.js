@@ -12,13 +12,18 @@ import { colors } from '../theme';
 export const INGREDIENTS = [
   { id: 'egg', name: '계란', emoji: '🥚' },
   { id: 'kimchi', name: '김치', image: require('../../assets/kimchi.jpg') },
-  { id: 'tuna', name: '참치', emoji: '🐟' },
   { id: 'pasta', name: '파스타', emoji: '🍝' },
+  // comingSoon: 아직 요리가 없어 고를 수 없는 재료(흐리게, "(업데이트 예정)" 표시)
+  { id: 'tuna', name: '참치', emoji: '🐟', comingSoon: true },
 ];
+
+const SELECTABLE_IDS = INGREDIENTS.filter((item) => !item.comingSoon).map((item) => item.id);
 
 export default function IngredientScreen({ initialSelected = [], onNext }) {
   // 요리 화면에서 돌아왔을 때 이전에 고른 재료가 그대로 선택돼 있도록 합니다.
-  const [selected, setSelected] = useState(initialSelected);
+  const [selected, setSelected] = useState(() =>
+    initialSelected.filter((id) => SELECTABLE_IDS.includes(id))
+  );
 
   // 재료는 하나만 고를 수 있습니다. 다른 재료를 누르면 선택이 그 재료로 바뀌고,
   // 이미 고른 재료를 다시 누르면 선택이 풀립니다.
@@ -45,15 +50,18 @@ export default function IngredientScreen({ initialSelected = [], onNext }) {
         <View style={styles.grid}>
           {INGREDIENTS.map((item) => {
             const isSelected = selected.includes(item.id);
+            const disabled = Boolean(item.comingSoon);
             return (
               <Pressable
                 key={item.id}
                 accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
+                accessibilityState={{ selected: isSelected, disabled }}
+                disabled={disabled}
                 onPress={() => toggle(item.id)}
                 style={({ pressed }) => [
                   styles.card,
                   isSelected && styles.cardSelected,
+                  disabled && styles.cardDisabled,
                   pressed && styles.pressed,
                 ]}
               >
@@ -73,6 +81,7 @@ export default function IngredientScreen({ initialSelected = [], onNext }) {
                     )}
                   </View>
                   <Text style={[styles.name, isSelected && styles.nameSelected]}>{item.name}</Text>
+                  {disabled ? <Text style={styles.comingSoon}>(업데이트 예정)</Text> : null}
                 </View>
               </Pressable>
             );
@@ -147,6 +156,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+  },
+  cardDisabled: {
+    opacity: 0.45,
+    backgroundColor: '#F3EEEA',
+  },
+  comingSoon: {
+    marginTop: -6,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   cardSelected: {
     borderColor: colors.orange,

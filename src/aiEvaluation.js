@@ -67,12 +67,19 @@ function withTimeout(promise, ms) {
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// "오믈렛을", "계란말이를"처럼 받침에 맞는 조사를 붙입니다.
+function withObjectParticle(word) {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  const hasFinal = code >= 0 && code <= 11171 && code % 28 !== 0;
+  return `${word}${hasFinal ? '을' : '를'}`;
+}
+
 // AI가 끝내 답하지 못할 때 보여 주는 기본 평가입니다. 사진은 보지 않고 레시피의 요령을 알려 줍니다.
 export function getBasicEvaluation(dishId) {
   const recipe = RECIPES[dishId];
   return {
-    score: 4,
-    summary: `${recipe?.name ?? '요리'}를 끝까지 완성했어요! 지금은 AI가 바빠서 사진 대신 레시피를 바탕으로 기본 평가를 드려요.`,
+    score: 3,
+    summary: `${withObjectParticle(recipe?.name ?? '요리')} 끝까지 완성했어요! 지금은 AI가 바빠서 사진 대신 레시피를 바탕으로 기본 평가를 드려요.`,
     improvements: (recipe?.tips ?? ['레시피의 시간과 불 세기를 지키며 한 번 더 만들어 보세요.']).slice(0, 3),
     source: 'basic',
   };

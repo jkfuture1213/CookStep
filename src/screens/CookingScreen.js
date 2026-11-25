@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getSaveErrorMessage, saveCookedDish } from '../cookingHistory';
+import TitleUpCelebration from '../components/TitleUpCelebration';
+import { getSaveErrorMessage, loadCookedDishes, saveCookedDish } from '../cookingHistory';
 import { RECIPES } from '../data/recipes';
 import { colors } from '../theme';
+import { findTitleUp } from '../titles';
 
 // 요리 학습 화면: 한 화면에 한 단계씩, 그림과 설명을 함께 보여 줍니다.
 // 마지막 단계의 "완료"를 누르면 Firebase에 기록을 저장하고 onFinish(기록 id, 요리 이름)를 부릅니다.
@@ -21,6 +23,8 @@ export default function CookingScreen({ dishId, onExit, onFinish }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // 이번 완료로 칭호가 올라갔다면 축하 화면을 먼저 보여 주고, 닫으면 사진 화면으로 갑니다.
+  const [titleUp, setTitleUp] = useState(null); // { title, cookedId }
 
   if (!recipe) {
     return null;
@@ -35,7 +39,19 @@ export default function CookingScreen({ dishId, onExit, onFinish }) {
     setError('');
     setSaving(true);
     try {
+      // 저장 전 기록을 읽어 두어야 칭호가 올라갔는지 알 수 있습니다. 못 읽어도 저장은 계속합니다.
+      let before = null;
+      try {
+        before = await loadCookedDishes();
+      } catch (e) {
+        console.warn('요리 기록 불러오기 오류', e);
+      }
       const cookedId = await saveCookedDish(dishId, recipe.name);
+      const newTitle = before ? findTitleUp(before, [...before, { id: cookedId, dishId }]) : null;
+      if (newTitle) {
+        setTitleUp({ title: newTitle, cookedId });
+        return;
+      }
       // 기록을 저장했으면 완성 사진을 찍는 화면으로 넘어갑니다.
       onFinish(cookedId, recipe.name);
     } catch (e) {
@@ -54,6 +70,11 @@ export default function CookingScreen({ dishId, onExit, onFinish }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <TitleUpCelebration
+        visible={Boolean(titleUp)}
+        title={titleUp?.title}
+        onClose={() => onFinish(titleUp.cookedId, recipe.name)}
+      />
       {/* 상단: 요리 이름 */}
       <View style={styles.topBar}>
         <Pressable
@@ -96,6 +117,7 @@ export default function CookingScreen({ dishId, onExit, onFinish }) {
           <View style={styles.ingredientsBox}>
             <Text style={styles.ingredientsTitle}>준비할 재료</Text>
             <Text style={styles.ingredientsText}>{recipe.ingredients.join(', ')}</Text>
+            {recipe.source ? <Text style={styles.sourceText}>레시피 출처: {recipe.source}</Text> : null}
           </View>
         )}
       </ScrollView>
@@ -223,6 +245,11 @@ const styles = StyleSheet.create({
   ingredientsText: {
     fontSize: 16,
     color: colors.text,
+  },
+  sourceText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: colors.textMuted,
   },
   footer: {
     paddingHorizontal: 24,

@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 
 import { auth } from './firebase';
@@ -82,6 +83,15 @@ export async function saveEvaluation(cookedId, evaluation) {
   );
 }
 
+// 요리 기록 하나를 지웁니다. 평가는 기록 안에 있어서 같이 지워지고, 사진 문서도 함께 지웁니다.
+export async function deleteCookedDish(cookedId) {
+  const { db, uid } = getContext();
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'users', uid, 'cookedDishes', cookedId));
+  batch.delete(doc(db, 'users', uid, 'cookedPhotos', cookedId));
+  await withTimeout(batch.commit(), SAVE_TIMEOUT_MS);
+}
+
 // 요리 기록에 연결된 사진을 불러옵니다. 사진이 없으면 null.
 export async function loadCookedPhoto(cookedId) {
   const { db, uid } = getContext();
@@ -101,7 +111,7 @@ export function getSaveErrorMessage(error) {
 }
 
 // 지금까지 만든 요리 기록을 최근 것부터 가져옵니다.
-// 돌려주는 값 예: [{ id: 'abc', dishName: '삶은 계란', completedAt: Date, hasPhoto: true, evaluation: {...} }]
+// 돌려주는 값 예: [{ id: 'abc', dishId: 'boiled-egg', dishName: '삶은 계란', completedAt: Date, hasPhoto: true, evaluation: {...} }]
 export async function loadCookedDishes() {
   const user = auth?.currentUser;
   if (!user) {
@@ -117,6 +127,7 @@ export async function loadCookedDishes() {
     const data = item.data();
     return {
       id: item.id,
+      dishId: data.dishId,
       dishName: data.dishName,
       completedAt: data.completedAt?.toDate ? data.completedAt.toDate() : null,
       hasPhoto: Boolean(data.hasPhoto),

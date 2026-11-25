@@ -4,8 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { evaluateDish, getBasicEvaluation, getEvaluationErrorDetail } from '../aiEvaluation';
 import EvaluationCard from '../components/EvaluationCard';
-import { saveEvaluation } from '../cookingHistory';
+import ShareButton from '../components/ShareButton';
+import LevelUpCelebration from '../components/LevelUpCelebration';
+import TitleUpCelebration from '../components/TitleUpCelebration';
+import { loadCookedDishes, saveEvaluation } from '../cookingHistory';
+import { DISHES_BY_INGREDIENT } from '../data/dishes';
+import { findDishLadder, findNewlyUnlockedDish } from '../progress';
 import { colors } from '../theme';
+import { findTitleUp } from '../titles';
 
 // 완성 사진을 AI에게 보내 레시피대로 잘 만들었는지 평가받는 화면입니다.
 // 평가가 끝나면 요리 기록에 저장해서 마이페이지에서도 다시 볼 수 있습니다.
@@ -15,6 +21,10 @@ export default function EvaluationScreen({ cookedId, dishId, dishName, photo, on
 
   const [noticeDetail, setNoticeDetail] = useState('');
   const [loading, setLoading] = useState(true);
+  const [unlockedDish, setUnlockedDish] = useState(null); // 이번 평가로 새로 열린 요리(축하 화면용)
+  // 이번 평가로 올라간 칭호. 단계 해제 축하가 있으면 그걸 닫은 뒤에 보여 줍니다.
+  const [newTitle, setNewTitle] = useState(null);
+  const [titleReady, setTitleReady] = useState(false); // 단계 해제 축하가 다 닫혔는지
 
   // AI 평가를 받고, AI가 실패하면 바로 앱 안의 기본 평가를 보여 줍니다.
   const runEvaluation = useCallback(async () => {
@@ -29,12 +39,38 @@ export default function EvaluationScreen({ cookedId, dishId, dishName, photo, on
       setNoticeDetail(getEvaluationErrorDetail(e));
       result = getBasicEvaluation(dishId);
     }
+    // 평가를 저장하기 전에 기록을 읽어 두어야 "이번 평가로 새 단계가 열렸는지" 알 수 있습니다.
+    let records = null;
+    try {
+      records = await loadCookedDishes();
+    } catch (e) {
+      console.warn('요리 기록 불러오기 오류', e);
+    }
+
     setEvaluation(result);
     setLoading(false);
+    let saved = false;
     try {
       await saveEvaluation(cookedId, result);
+      saved = true;
     } catch (e) {
       setSaveWarning('평가 결과를 마이페이지에 저장하지 못했어요.');
+    }
+
+    // 저장된 평가로 다음 단계가 처음 열렸다면 축하 화면을 띄웁니다.
+    if (saved && records) {
+      const ladder = findDishLadder(DISHES_BY_INGREDIENT, dishId);
+      const newDish = findNewlyUnlockedDish(ladder, records, cookedId, result);
+      if (newDish) {
+        setUnlockedDish(newDish);
+      }
+      setTitleReady(!newDish);
+      // 이번 평가를 넣기 전/후의 칭호를 비교합니다.
+      const withoutNew = records.filter((record) => record.id !== cookedId);
+      const thisRecord = records.find((record) => record.id === cookedId);
+      const before = thisRecord ? [...withoutNew, thisRecord] : withoutNew;
+      const after = [...withoutNew, { ...thisRecord, id: cookedId, dishId, evaluation: result }];
+      setNewTitle(findTitleUp(before, after));
     }
   }, [cookedId, dishId, photo]);
 
@@ -44,6 +80,21 @@ export default function EvaluationScreen({ cookedId, dishId, dishName, photo, on
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <LevelUpCelebration
+        visible={Boolean(unlockedDish)}
+        dish={unlockedDish}
+        score={evaluation?.score ?? 0}
+        onClose={() => {
+          setUnlockedDish(null);
+          // 축하 화면 두 개가 동시에 바뀌면 iPhone에서 다음 화면이 안 뜰 수 있어 잠깐 기다립니다.
+          setTimeout(() => setTitleReady(true), 500);
+        }}
+      />
+      <TitleUpCelebration
+        visible={Boolean(newTitle) && titleReady}
+        title={newTitle}
+        onClose={() => setNewTitle(null)}
+      />
       <View style={styles.header}>
         <Text style={styles.title}>{dishName} 평가</Text>
       </View>
@@ -58,6 +109,7 @@ export default function EvaluationScreen({ cookedId, dishId, dishName, photo, on
           </View>
         )}
 
+        {photo?.uri ? <ShareButton photo={photo.uri} dishName={dishName} /> : null}
         {!loading && evaluation && <EvaluationCard evaluation={evaluation} />}
 
         {!loading && evaluation?.source === 'basic' && (

@@ -13,10 +13,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { isFirebaseConfigured } from '../firebase';
 import { getAuthErrorMessage } from '../authErrors';
+import { checkNickname, NICKNAME_MAX } from '../nickname';
 import { colors } from '../theme';
 
 // 로그인 화면과 회원가입 화면이 함께 쓰는 입력 양식입니다.
-// mode가 'signup'이면 비밀번호 확인 칸이 하나 더 나옵니다.
+// mode가 'signup'이면 닉네임 칸과 비밀번호 확인 칸이 더 나오고, onSubmit(이메일, 비밀번호, 닉네임)을 부릅니다.
 export default function AuthForm({
   mode,
   subtitle,
@@ -26,6 +27,7 @@ export default function AuthForm({
   onSwitch,
 }) {
   const isSignUp = mode === 'signup';
+  const [nickname, setNickname] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -39,6 +41,11 @@ export default function AuthForm({
       setError('src/config/firebaseConfig.js에 Firebase 설정값을 먼저 넣어 주세요.');
       return;
     }
+    const nicknameError = isSignUp ? checkNickname(nickname) : '';
+    if (nicknameError) {
+      setError(nicknameError);
+      return;
+    }
     if (!email.trim() || !password) {
       setError('이메일과 비밀번호를 입력해 주세요.');
       return;
@@ -50,7 +57,7 @@ export default function AuthForm({
 
     setLoading(true);
     try {
-      await onSubmit(email.trim(), password);
+      await onSubmit(email.trim(), password, nickname.trim());
       // 성공하면 App.js가 로그인 상태 변화를 감지해서 홈 화면으로 바꿉니다.
     } catch (e) {
       setError(getAuthErrorMessage(e));
@@ -70,6 +77,19 @@ export default function AuthForm({
         </View>
 
         <View style={styles.form}>
+          {isSignUp && (
+            <TextInput
+              style={styles.input}
+              placeholder={`닉네임 (${NICKNAME_MAX}자 이하)`}
+              placeholderTextColor={colors.placeholder}
+              value={nickname}
+              onChangeText={setNickname}
+              maxLength={NICKNAME_MAX}
+              autoCapitalize="none"
+              textContentType="nickname"
+              editable={!loading}
+            />
+          )}
           <TextInput
             style={styles.input}
             placeholder="이메일"
