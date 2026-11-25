@@ -1,18 +1,18 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getSaveErrorMessage, saveCookedPhoto } from '../cookingHistory';
-import { colors } from '../theme';
+import { useColors, useThemedStyles } from '../theme';
 
 // 저장할 사진 크기(정사각형 한 변, 픽셀)와 압축 정도. 작게 줄여야 Firestore에 저장할 수 있습니다.
 const PHOTO_SIZE = 720;
 const PHOTO_QUALITY = 0.5;
 
 // 찍은 사진에서 화면의 네모 칸과 같은 가운데 정사각형만 잘라 작게 줄입니다.
-async function cropToSquare(photo) {
+export async function cropToSquare(photo) {
   const side = Math.min(photo.width, photo.height);
   const context = ImageManipulator.manipulate(photo.uri);
   context
@@ -28,25 +28,38 @@ async function cropToSquare(photo) {
 }
 
 // 요리를 다 만든 뒤 완성 사진을 찍는 화면입니다.
+// '사진 찍기'를 누르면 휴대폰 카메라 앱이 열리고, 찍은 사진은 가운데 네모 칸에 정사각형으로 보여 줍니다.
 // onEvaluate(photo): 사진을 저장한 뒤 AI 평가 화면으로 넘어갈 때 부릅니다.
 export default function PhotoScreen({ cookedId, dishName, onDone, onEvaluate }) {
-  const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef(null);
-  const [cameraReady, setCameraReady] = useState(false);
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const [photo, setPhoto] = useState(null); // { uri, base64 }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   async function handleShoot() {
-    if (!cameraRef.current || !cameraReady) {
-      return;
-    }
     setError('');
-    setBusy(true);
     try {
-      const picture = await cameraRef.current.takePictureAsync({ quality: 0.8 });
-      setPhoto(await cropToSquare(picture));
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setError('사진을 찍으려면 카메라 권한이 필요해요. 휴대폰 설정에서 카메라 접근을 허용해 주세요.');
+        return;
+      }
+      // 카메라 앱에서 정사각형으로 맞춰 찍을 수 있게 하고, 한 번 더 가운데 정사각형으로 잘라 줄입니다.
+      const picked = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+      });
+      if (picked.canceled || !picked.assets?.length) {
+        return;
+      }
+      setBusy(true);
+      const asset = picked.assets[0];
+      setPhoto(await cropToSquare({ uri: asset.uri, width: asset.width, height: asset.height }));
     } catch (e) {
+      console.warn('카메라 오류', e);
       setError('사진을 찍지 못했습니다. 다시 시도해 주세요.');
     } finally {
       setBusy(false);
@@ -70,32 +83,18 @@ export default function PhotoScreen({ cookedId, dishName, onDone, onEvaluate }) 
     }
   }
 
+  // 네모 칸: 찍은 사진이 있으면 사진을, 없으면 안내를 보여 줍니다.
   let frameContent;
   if (photo) {
     frameContent = <Image source={{ uri: photo.uri }} style={styles.fill} />;
-  } else if (!permission) {
+  } else if (busy) {
     frameContent = <ActivityIndicator color={colors.orange} />;
-  } else if (!permission.granted) {
-    frameContent = (
-      <View style={styles.permission}>
-        <Text style={styles.permissionText}>사진을 찍으려면 카메라 권한이 필요해요.</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={requestPermission}
-          style={({ pressed }) => [styles.smallButton, pressed && styles.pressed]}
-        >
-          <Text style={styles.smallButtonText}>카메라 허용하기</Text>
-        </Pressable>
-      </View>
-    );
   } else {
     frameContent = (
-      <CameraView
-        ref={cameraRef}
-        style={styles.fill}
-        facing="back"
-        onCameraReady={() => setCameraReady(true)}
-      />
+      <View style={styles.permission}>
+        <Text style={styles.placeholderEmoji}>📷</Text>
+        <Text style={styles.permissionText}>아래 '사진 찍기'를 누르면 카메라가 열려요.</Text>
+      </View>
     );
   }
 
@@ -103,11 +102,11 @@ export default function PhotoScreen({ cookedId, dishName, onDone, onEvaluate }) 
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Text style={styles.title}>완성된 요리 사진을 찍어 주세요</Text>
-        <Text style={styles.subtitle}>{dishName} 요리가 네모 칸 안에 들어오게 맞춰 주세요</Text>
+        <Text style={styles.subtitle}>{dishName} 요리가 잘 보이게 찍어 주세요</Text>
       </View>
 
       <View style={styles.body}>
-        {/* 이 네모 칸에 보이는 모습 그대로 사진이 저장됩니다. */}
+        {/* 찍은 사진이 이 네모 칸에 보이는 모습 그대로 저장됩니다. */}
         <View style={styles.frame}>{frameContent}</View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
@@ -117,7 +116,7 @@ export default function PhotoScreen({ cookedId, dishName, onDone, onEvaluate }) 
           <View style={styles.row}>
             <Pressable
               accessibilityRole="button"
-              onPress={() => setPhoto(null)}
+              onPress={handleShoot}
               disabled={busy}
               style={({ pressed }) => [styles.button, styles.secondary, pressed && styles.pressed]}
             >
@@ -139,16 +138,21 @@ export default function PhotoScreen({ cookedId, dishName, onDone, onEvaluate }) 
         ) : (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="사진 찍기"
             onPress={handleShoot}
-            disabled={busy || !cameraReady}
+            disabled={busy}
             style={({ pressed }) => [
-              styles.shutter,
-              (busy || !cameraReady) && styles.shutterDisabled,
+              styles.button,
+              styles.primary,
+              styles.shootButton,
+              busy && styles.shutterDisabled,
               pressed && styles.pressed,
             ]}
           >
-            {busy ? <ActivityIndicator color="#FFFFFF" /> : <View style={styles.shutterInner} />}
+            {busy ? (
+              <ActivityIndicator color={colors.onOrange} />
+            ) : (
+              <Text style={[styles.buttonText, styles.primaryText]}>📷 사진 찍기</Text>
+            )}
           </Pressable>
         )}
 
@@ -166,7 +170,8 @@ export default function PhotoScreen({ cookedId, dishName, onDone, onEvaluate }) 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -200,7 +205,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 3,
     borderColor: colors.orange,
-    backgroundColor: '#2B2B2B',
+    backgroundColor: colors.surface,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -215,7 +220,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   permissionText: {
-    color: '#FFFFFF',
+    color: colors.textMuted,
     fontSize: 16,
     textAlign: 'center',
   },
@@ -226,7 +231,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
   smallButtonText: {
-    color: '#FFFFFF',
+    color: colors.onOrange,
     fontWeight: '700',
     fontSize: 15,
   },
@@ -255,14 +260,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   shutterDisabled: {
-    backgroundColor: '#F5B9A2',
+    backgroundColor: colors.orangeDisabled,
   },
   shutterInner: {
     width: 60,
     height: 60,
     borderRadius: 30,
     borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: colors.onOrange,
+  },
+  shootButton: {
+    alignSelf: 'stretch',
+  },
+  placeholderEmoji: {
+    fontSize: 44,
   },
   skip: {
     fontSize: 15,
@@ -283,7 +294,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
   secondary: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.orange,
   },
@@ -292,7 +303,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryText: {
-    color: '#FFFFFF',
+    color: colors.onOrange,
   },
   secondaryText: {
     color: colors.orange,

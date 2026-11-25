@@ -2,17 +2,18 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import UserMenu from '../components/UserMenu';
 import { loadCookedDishes } from '../cookingHistory';
 import { DISHES_BY_INGREDIENT } from '../data/dishes';
 import { RECIPES } from '../data/recipes';
 import { getUnlockedLevel, UNLOCK_SCORE } from '../progress';
-import { colors } from '../theme';
+import { useColors, useThemedStyles } from '../theme';
 import { INGREDIENTS } from './IngredientScreen';
 
 // 재료 선택 화면에서 고른 재료(selectedIds, 지금은 1개)로 만들 수 있는 요리를 단계별로 보여 줍니다.
 // 요리 기록의 평가를 보고 어느 단계까지 열렸는지 정합니다(src/progress.js).
 export default function DishScreen({ selectedIds, onBack, onSelectDish }) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   // 재료 선택 화면과 같은 순서(계란, 김치, 참치, 파스타)로 보여 줍니다.
   const ingredients = INGREDIENTS.filter((item) => selectedIds.includes(item.id));
   // 누른 요리는 선택 표시만 하고, 아래 "다음" 버튼을 눌러야 학습 화면으로 넘어갑니다.
@@ -47,7 +48,6 @@ export default function DishScreen({ selectedIds, onBack, onSelectDish }) {
         <Pressable accessibilityRole="button" onPress={onBack} hitSlop={8}>
           <Text style={styles.back}>‹ 재료 다시 고르기</Text>
         </Pressable>
-        <UserMenu />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -164,7 +164,8 @@ export default function DishScreen({ selectedIds, onBack, onSelectDish }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.orange,
   },
@@ -222,13 +223,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 999,
-    backgroundColor: '#FDE3D7',
+    backgroundColor: colors.orangeSoft,
   },
   levelBadgeSelected: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.onOrange,
   },
   levelBadgeDisabled: {
-    backgroundColor: '#E2D8D1',
+    backgroundColor: colors.disabledBadge,
   },
   levelText: {
     fontSize: 12,
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
     color: colors.orange,
   },
   levelTextDisabled: {
-    color: '#A99D95',
+    color: colors.disabledText,
   },
   hint: {
     fontSize: 14,
@@ -253,8 +254,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
   dishDisabled: {
-    backgroundColor: '#EFE7E1',
-    borderColor: '#EFE7E1',
+    backgroundColor: colors.disabledBg,
+    borderColor: colors.disabledBg,
   },
   dishText: {
     fontSize: 17,
@@ -262,19 +263,19 @@ const styles = StyleSheet.create({
     color: colors.orange,
   },
   dishTextSelected: {
-    color: '#FFFFFF',
+    color: colors.onOrange,
   },
   check: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#FFFFFF',
+    color: colors.onOrange,
   },
   dishTextDisabled: {
-    color: '#A99D95',
+    color: colors.disabledText,
   },
   soon: {
     fontSize: 13,
-    color: '#A99D95',
+    color: colors.disabledText,
   },
   pressed: {
     opacity: 0.75,
@@ -292,12 +293,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
   nextDisabled: {
-    backgroundColor: '#F5B9A2',
+    backgroundColor: colors.orangeDisabled,
   },
   nextText: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onOrange,
   },
   preparing: {
     height: 58,

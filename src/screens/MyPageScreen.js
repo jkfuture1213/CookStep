@@ -19,7 +19,7 @@ import EvaluationCard from '../components/EvaluationCard';
 import ShareButton from '../components/ShareButton';
 import { deleteCookedDish, getLoadErrorMessage, loadCookedDishes, loadCookedPhoto } from '../cookingHistory';
 import { checkNickname, NICKNAME_MAX, saveNickname, useNickname } from '../nickname';
-import { colors } from '../theme';
+import { useColors, useThemedStyles } from '../theme';
 import { getCookingTitleIndex, TITLES } from '../titles';
 
 // 가입한 날을 1일차로 셉니다. 예: 어제 가입했으면 2일차.
@@ -36,6 +36,7 @@ function getCookingDay(user) {
 
 // 마이페이지 위쪽: 프로필 사진, 이메일, 칭호, 요리 시작 N일차
 function ProfileHeader({ user, dishes, onOpenTitles, onEditNickname }) {
+  const styles = useThemedStyles(createStyles);
   const nickname = useNickname(user);
   return (
     <View style={styles.profile}>
@@ -101,6 +102,8 @@ function formatDateTime(date) {
 
 // 목록에서 요리를 누르면 보이는 상세 화면: 만든 날짜와 완성 사진
 function CookedDishDetail({ item, onBack, onDeleted }) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const [photo, setPhoto] = useState(undefined); // undefined: 불러오는 중, null: 사진 없음
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -214,6 +217,8 @@ function CookedDishDetail({ item, onBack, onDeleted }) {
 
 // 닉네임 변경 화면: 새 닉네임을 입력하고 저장하면 마이페이지로 돌아갑니다.
 function NicknameEdit({ user, onBack }) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const current = useNickname(user);
   const [name, setName] = useState(user.displayName ?? '');
   const [error, setError] = useState('');
@@ -297,6 +302,7 @@ function NicknameEdit({ user, onBack }) {
 
 // 칭호 배지를 누르면 보이는 안내 화면: 모든 칭호와 얻는 조건, 지금 칭호 강조
 function TitleInfo({ dishes, onBack }) {
+  const styles = useThemedStyles(createStyles);
   const currentIndex = getCookingTitleIndex(dishes);
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -317,7 +323,9 @@ function TitleInfo({ dishes, onBack }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.titleList}>
-        <Text style={styles.titleIntro}>요리를 만들고 단계를 열수록 칭호가 올라가요!</Text>
+        <Text style={styles.titleIntro}>
+          요리를 만들고 단계를 열수록 칭호가 올라가요! 처음 받은 요리 실력 확인 점수로도 칭호를 바로 받을 수 있어요.
+        </Text>
         {TITLES.map((title, index) => {
           const isCurrent = index === currentIndex;
           const earned = index <= currentIndex;
@@ -336,7 +344,9 @@ function TitleInfo({ dishes, onBack }) {
                     </View>
                   ) : null}
                 </View>
-                <Text style={styles.titleCondition}>{title.condition}</Text>
+                <Text style={styles.titleCondition}>
+                  {title.scoreCondition ? `${title.condition}\n${title.scoreCondition}` : title.condition}
+                </Text>
               </View>
             </View>
           );
@@ -348,6 +358,8 @@ function TitleInfo({ dishes, onBack }) {
 
 // 마이페이지: 위에는 프로필 사진·이메일·칭호·요리 시작 N일차, 아래에는 지금까지 만든 요리 목록.
 export default function MyPageScreen({ user, onBack }) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const [dishes, setDishes] = useState(null); // null이면 불러오는 중
   const [error, setError] = useState('');
   const [openedItem, setOpenedItem] = useState(null); // 상세 화면으로 연 요리 기록
@@ -462,7 +474,8 @@ export default function MyPageScreen({ user, onBack }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -502,7 +515,7 @@ const styles = StyleSheet.create({
     borderRadius: 48,
     borderWidth: 2,
     borderColor: colors.orange,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -534,7 +547,7 @@ const styles = StyleSheet.create({
   titleBadgeText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onOrange,
   },
   nicknameButton: {
     marginTop: 2,
@@ -543,7 +556,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1.5,
     borderColor: colors.orange,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   nicknameButtonText: {
     fontSize: 14,
@@ -567,7 +580,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     fontSize: 16,
     color: colors.text,
@@ -588,7 +601,7 @@ const styles = StyleSheet.create({
   saveText: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onOrange,
   },
   titleList: {
     paddingHorizontal: 24,
@@ -607,14 +620,14 @@ const styles = StyleSheet.create({
     gap: 14,
     padding: 16,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
   titleCardCurrent: {
     borderWidth: 2,
     borderColor: colors.orange,
-    backgroundColor: '#FFEFE6',
+    backgroundColor: colors.orangeTint,
   },
   titleCardLocked: {
     opacity: 0.6,
@@ -645,7 +658,7 @@ const styles = StyleSheet.create({
   currentTagText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onOrange,
   },
   titleCondition: {
     fontSize: 14,
@@ -681,7 +694,7 @@ const styles = StyleSheet.create({
     height: 58,
     paddingHorizontal: 20,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -722,7 +735,7 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
@@ -739,7 +752,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.error,
   },

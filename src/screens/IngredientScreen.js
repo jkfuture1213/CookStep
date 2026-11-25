@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import UserMenu from '../components/UserMenu';
-import { colors } from '../theme';
+import { useThemedStyles } from '../theme';
 
 // 재료 목록입니다. image가 있으면 사진을, 없으면 이모지를 보여 줍니다.
 // 사진은 assets 폴더에 넣고 image: require('../../assets/파일이름.jpg') 처럼 연결합니다.
@@ -19,7 +18,8 @@ export const INGREDIENTS = [
 
 const SELECTABLE_IDS = INGREDIENTS.filter((item) => !item.comingSoon).map((item) => item.id);
 
-export default function IngredientScreen({ initialSelected = [], onNext }) {
+export default function IngredientScreen({ initialSelected = [], onBack, onNext }) {
+  const styles = useThemedStyles(createStyles);
   // 요리 화면에서 돌아왔을 때 이전에 고른 재료가 그대로 선택돼 있도록 합니다.
   const [selected, setSelected] = useState(() =>
     initialSelected.filter((id) => SELECTABLE_IDS.includes(id))
@@ -40,7 +40,9 @@ export default function IngredientScreen({ initialSelected = [], onNext }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.topBar}>
-        <UserMenu />
+        <Pressable accessibilityRole="button" onPress={onBack} hitSlop={8}>
+          <Text style={styles.back}>‹ 뒤로</Text>
+        </Pressable>
       </View>
 
       <View style={styles.container}>
@@ -106,16 +108,24 @@ export default function IngredientScreen({ initialSelected = [], onNext }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
   },
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingHorizontal: 20,
     paddingTop: 8,
+  },
+  back: {
+    marginTop: 12,
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
   container: {
     flex: 1,
@@ -147,7 +157,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 2,
     borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
@@ -159,7 +169,7 @@ const styles = StyleSheet.create({
   },
   cardDisabled: {
     opacity: 0.45,
-    backgroundColor: '#F3EEEA',
+    backgroundColor: colors.disabledBg,
   },
   comingSoon: {
     marginTop: -6,
@@ -169,7 +179,7 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderColor: colors.orange,
-    backgroundColor: '#FFF0E8',
+    backgroundColor: colors.orangeTint,
   },
   check: {
     position: 'absolute',
@@ -183,7 +193,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkText: {
-    color: '#FFFFFF',
+    color: colors.onOrange,
     fontSize: 14,
     fontWeight: '800',
   },
@@ -226,11 +236,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
   nextDisabled: {
-    backgroundColor: '#F5B9A2',
+    backgroundColor: colors.orangeDisabled,
   },
   nextText: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onOrange,
   },
 });

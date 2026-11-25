@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
     },
@@ -29,7 +29,15 @@
           "recordAudioAndroid": false
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AI 평가를 받을 요리 사진을 가져오기 위해 사진 보관함을 사용합니다.",
+          "cameraPermission": "AI 평가를 받을 요리 사진을 찍기 위해 카메라를 사용합니다.",
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }

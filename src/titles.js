@@ -2,14 +2,16 @@
 // 아래 목록은 낮은 칭호부터 높은 칭호 순서이고, 조건을 채운 것 중 가장 높은 칭호가 적용됩니다.
 import { DISHES_BY_INGREDIENT } from './data/dishes';
 import { getUnlockedLevel } from './progress';
+import { getCurrentSkillResult } from './skillCheck';
 
 const MAX_LEVEL = 5;
 
 // 재료별로 열린 단계 수. 아직 요리가 없는(업데이트 예정) 재료는 빼고 셉니다.
+// 칭호는 직접 통과한 단계로만 정하므로, 실력 확인으로 미리 열린 단계는 세지 않습니다(시작 단계 1).
 function getLevels(records) {
   return Object.values(DISHES_BY_INGREDIENT)
     .filter((dishes) => dishes.length > 0)
-    .map((dishes) => getUnlockedLevel(dishes, records));
+    .map((dishes) => getUnlockedLevel(dishes, records, 1));
 }
 
 export const TITLES = [
@@ -29,12 +31,17 @@ export const TITLES = [
     name: '초급 요리사',
     emoji: '🥄',
     condition: '한 재료라도 3단계를 열면',
+    // 요리 실력 확인 점수로 바로 받는 조건(src/skillCheck.js의 level)
+    scoreLevel: 'novice',
+    scoreCondition: '요리 실력 확인 4~7점',
     check: (records) => getLevels(records).some((level) => level >= 3),
   },
   {
     name: '중급 요리사',
     emoji: '🔪',
     condition: '한 재료라도 5단계를 열면',
+    scoreLevel: 'intermediate',
+    scoreCondition: '요리 실력 확인 8~11점',
     check: (records) => getLevels(records).some((level) => level >= MAX_LEVEL),
   },
   {
@@ -48,15 +55,24 @@ export const TITLES = [
   },
 ];
 
-// 지금 칭호의 순서(0 = 평범한 자취생)
+// 요리 실력 확인 점수로 받는 칭호의 순서(초급 4~7점 → 초급 요리사, 중급 8~11점 → 중급 요리사, 그 외 0)
+export function getScoreTitleIndex() {
+  const level = getCurrentSkillResult()?.level;
+  const index = TITLES.findIndex((title) => title.scoreLevel && title.scoreLevel === level);
+  return Math.max(0, index);
+}
+
+// 지금 칭호의 순서(0 = 평범한 자취생). 요리 기록으로 얻은 칭호와 실력 확인 점수로 받은 칭호 중 높은 쪽입니다.
 export function getCookingTitleIndex(records) {
   const list = records ?? [];
+  let earned = 0;
   for (let i = TITLES.length - 1; i > 0; i -= 1) {
     if (TITLES[i].check(list)) {
-      return i;
+      earned = i;
+      break;
     }
   }
-  return 0;
+  return Math.max(earned, getScoreTitleIndex());
 }
 
 export function getCookingTitle(records) {

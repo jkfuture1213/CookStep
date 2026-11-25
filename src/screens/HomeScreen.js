@@ -2,14 +2,14 @@ import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import UserMenu from '../components/UserMenu';
 import { useNickname } from '../nickname';
-import { colors } from '../theme';
+import { useThemedStyles } from '../theme';
 
 const WELCOME_DURATION_MS = 2000;
 
-// 로그인 직후 잠깐 보이는 환영 화면입니다. 2초 뒤 onDone을 불러 재료 선택 화면으로 넘어갑니다.
+// 로그인 직후 잠깐 보이는 환영 화면입니다. 2초 뒤 onDone을 부릅니다(처음 로그인이면 실력 확인, 아니면 "오늘은 무엇을 하고 싶나요?" 화면으로).
 export default function HomeScreen({ user, onDone }) {
+  const styles = useThemedStyles(createStyles);
   // 막 가입했을 때는 닉네임 저장이 조금 늦게 끝나도 저장되는 즉시 바뀝니다.
   const nickname = useNickname(user);
   useEffect(() => {
@@ -21,7 +21,6 @@ export default function HomeScreen({ user, onDone }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.topBar}>
-        <UserMenu />
       </View>
       <View style={styles.header}>
         <Text style={styles.title}>환영해요!</Text>
@@ -32,7 +31,8 @@ export default function HomeScreen({ user, onDone }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

@@ -13,12 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import TitleUpCelebration from '../components/TitleUpCelebration';
 import { getSaveErrorMessage, loadCookedDishes, saveCookedDish } from '../cookingHistory';
 import { RECIPES } from '../data/recipes';
-import { colors } from '../theme';
+import { useThemedStyles } from '../theme';
 import { findTitleUp } from '../titles';
 
 // 요리 학습 화면: 한 화면에 한 단계씩, 그림과 설명을 함께 보여 줍니다.
 // 마지막 단계의 "완료"를 누르면 Firebase에 기록을 저장하고 onFinish(기록 id, 요리 이름)를 부릅니다.
 export default function CookingScreen({ dishId, onExit, onFinish }) {
+  const styles = useThemedStyles(createStyles);
   const recipe = RECIPES[dishId];
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -115,9 +116,14 @@ export default function CookingScreen({ dishId, onExit, onFinish }) {
 
         {isFirst && (
           <View style={styles.ingredientsBox}>
-            <Text style={styles.ingredientsTitle}>준비할 재료</Text>
+            <Text style={styles.ingredientsTitle}>
+              {recipe.kind === 'skill' ? '준비물' : '준비할 재료'}
+            </Text>
             <Text style={styles.ingredientsText}>{recipe.ingredients.join(', ')}</Text>
             {recipe.source ? <Text style={styles.sourceText}>레시피 출처: {recipe.source}</Text> : null}
+            {recipe.photoGuide ? (
+              <Text style={styles.sourceText}>📸 마지막에 찍을 사진: {recipe.photoGuide}</Text>
+            ) : null}
           </View>
         )}
       </ScrollView>
@@ -153,7 +159,8 @@ export default function CookingScreen({ dishId, onExit, onFinish }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -203,7 +210,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     aspectRatio: 4 / 3,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
@@ -234,7 +241,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     padding: 16,
     borderRadius: 14,
-    backgroundColor: '#FFF0E8',
+    backgroundColor: colors.orangeTint,
     gap: 4,
   },
   ingredientsTitle: {
@@ -278,7 +285,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
   secondary: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.orange,
   },
@@ -290,7 +297,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryText: {
-    color: '#FFFFFF',
+    color: colors.onOrange,
   },
   secondaryText: {
     color: colors.orange,

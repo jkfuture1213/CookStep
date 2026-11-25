@@ -1,9 +1,10 @@
 import { Modal, Pressable, StyleSheet, Text } from 'react-native';
 
-import { colors } from '../theme';
+import { useThemedStyles } from '../theme';
 
 // 칭호 배지를 빠르게 10번 누르면 나오는 이스터에그 화면입니다. 아무 곳이나 한 번 누르면 닫힙니다.
 export default function EasterEgg({ visible, onClose }) {
+  const styles = useThemedStyles(createStyles);
   return (
     <Modal visible={visible} animationType="fade" transparent={false} onRequestClose={onClose}>
       <Pressable accessibilityRole="button" accessibilityLabel="닫기" onPress={onClose} style={styles.screen}>
@@ -14,7 +15,8 @@ export default function EasterEgg({ visible, onClose }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   screen: {
     flex: 1,
     alignItems: 'center',
