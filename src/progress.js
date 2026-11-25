@@ -16,10 +16,19 @@ export function passesUnlock(record) {
   return UNLOCK_ACCEPTS_BASIC_EVALUATION || evaluation.source !== 'basic';
 }
 
+// 요리 실력 확인 결과로 처음부터 열어 두는 단계 수입니다(입문 1, 초급 2, 중급 3).
+// App.js가 로그인 후 실력 확인 기록을 읽고 setStartLevel로 정합니다.
+let startLevel = 1;
+
+export function setStartLevel(level) {
+  startLevel = Math.max(1, Math.floor(Number(level) || 1));
+}
+
 // dishes: 단계 순서대로 놓인 요리 목록, records: 요리 기록 목록
+// first: 처음부터 열려 있는 단계 수(기본값은 실력 확인 결과). 그 위로는 앞 단계에서 별 4개 이상을 받아야 열립니다.
 // 돌려주는 값: 열린 단계 수(1 이상). 예: 2면 1단계와 2단계가 열림.
-export function getUnlockedLevel(dishes, records) {
-  let unlocked = 1;
+export function getUnlockedLevel(dishes, records, first = startLevel) {
+  let unlocked = Math.max(1, Math.min(first, dishes.length));
   while (unlocked < dishes.length) {
     const topDishId = dishes[unlocked - 1].id;
     const passed = records.some((record) => record.dishId === topDishId && passesUnlock(record));

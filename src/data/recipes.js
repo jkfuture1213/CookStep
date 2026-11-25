@@ -2,6 +2,8 @@
 // picture: 단계 그림(이모지 조합). 나중에 사진으로 바꾸려면 image: require('../../assets/파일.jpg')를 넣으세요.
 // pictureCaption: 그림 아래 작은 글씨(선택)
 // source: 레시피 출처(선택). 학습 화면 첫 장에 표시됩니다. 전체 목록은 CREDITS.md
+import { SKILL_RECIPES } from './skills';
+
 export const RECIPES = {
   'boiled-egg': {
     name: '삶은 계란',
@@ -696,3 +698,6 @@ export const RECIPES = {
     ],
   },
 };
+
+// 기초 요리 스킬(src/data/skills.js)도 같은 학습·사진·평가 화면에서 쓸 수 있게 합칩니다.
+Object.assign(RECIPES, SKILL_RECIPES);

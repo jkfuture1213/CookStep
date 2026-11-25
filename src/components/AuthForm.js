@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { isFirebaseConfigured } from '../firebase';
 import { getAuthErrorMessage } from '../authErrors';
 import { checkNickname, NICKNAME_MAX } from '../nickname';
-import { colors } from '../theme';
+import { useColors, useThemedStyles } from '../theme';
 
 // 로그인 화면과 회원가입 화면이 함께 쓰는 입력 양식입니다.
 // mode가 'signup'이면 닉네임 칸과 비밀번호 확인 칸이 더 나오고, onSubmit(이메일, 비밀번호, 닉네임)을 부릅니다.
@@ -26,6 +26,8 @@ export default function AuthForm({
   switchLabel,
   onSwitch,
 }) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const isSignUp = mode === 'signup';
   const [nickname, setNickname] = useState('');
   const [email, setEmail] = useState('');
@@ -156,7 +158,8 @@ export default function AuthForm({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -190,7 +193,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     fontSize: 16,
     color: colors.text,
@@ -209,7 +212,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
   secondary: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.orange,
   },
@@ -221,7 +224,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryText: {
-    color: '#FFFFFF',
+    color: colors.onOrange,
   },
   secondaryText: {
     color: colors.orange,

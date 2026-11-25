@@ -10,12 +10,14 @@ import TitleUpCelebration from '../components/TitleUpCelebration';
 import { loadCookedDishes, saveEvaluation } from '../cookingHistory';
 import { DISHES_BY_INGREDIENT } from '../data/dishes';
 import { findDishLadder, findNewlyUnlockedDish } from '../progress';
-import { colors } from '../theme';
+import { useColors, useThemedStyles } from '../theme';
 import { findTitleUp } from '../titles';
 
 // 완성 사진을 AI에게 보내 레시피대로 잘 만들었는지 평가받는 화면입니다.
 // 평가가 끝나면 요리 기록에 저장해서 마이페이지에서도 다시 볼 수 있습니다.
 export default function EvaluationScreen({ cookedId, dishId, dishName, photo, onDone }) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const [evaluation, setEvaluation] = useState(null);
   const [saveWarning, setSaveWarning] = useState('');
 
@@ -142,7 +144,8 @@ export default function EvaluationScreen({ cookedId, dishId, dishName, photo, on
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -197,7 +200,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1.5,
     borderColor: colors.orange,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   retryText: {
     color: colors.orange,
@@ -220,12 +223,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.orange,
   },
   buttonDisabled: {
-    backgroundColor: '#F5B9A2',
+    backgroundColor: colors.orangeDisabled,
   },
   buttonText: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.onOrange,
   },
   pressed: {
     opacity: 0.75,

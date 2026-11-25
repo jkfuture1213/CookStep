@@ -1,9 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../theme';
+import { useThemedStyles } from '../theme';
 
 // 평가 결과(AI 평가 또는 기본 평가: 평점, 평가, 개선 사항)를 보여 주는 카드. 평가 화면과 마이페이지에서 같이 씁니다.
 export default function EvaluationCard({ evaluation }) {
+  const styles = useThemedStyles(createStyles);
   const stars = '★'.repeat(evaluation.score) + '☆'.repeat(5 - evaluation.score);
   return (
     <View style={styles.card}>
@@ -31,11 +32,12 @@ export default function EvaluationCard({ evaluation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   card: {
     padding: 18,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     gap: 6,

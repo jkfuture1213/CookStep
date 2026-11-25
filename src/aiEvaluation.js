@@ -16,6 +16,19 @@ const EVALUATION_SCHEMA = Schema.object({
   },
 });
 
+// 레시피 없이 올린 사진(AI 평가 탭의 '사진 찍기')용: 요리 이름도 함께 돌려받습니다.
+const FREE_EVALUATION_SCHEMA = Schema.object({
+  properties: {
+    dishName: Schema.string({ description: '사진 속 요리 이름(한국어, 짧게). 사용자가 알려 준 이름이 있으면 그대로' }),
+    score: Schema.integer({ description: '1~5점 평점' }),
+    summary: Schema.string({ description: '2~3문장의 간단한 평가' }),
+    improvements: Schema.array({
+      items: Schema.string(),
+      description: '다음에 더 잘 만들기 위한 개선 사항 1~3개, 각각 한 문장',
+    }),
+  },
+});
+
 const SYSTEM_PROMPT = `당신은 요리를 처음 배우는 1인 가구 사용자를 돕는 친절한 요리 선생님입니다.
 사용자가 레시피를 따라 만든 요리의 완성 사진을 보고, 레시피대로 잘 만들어졌는지 평가합니다.
 
@@ -23,6 +36,7 @@ const SYSTEM_PROMPT = `당신은 요리를 처음 배우는 1인 가구 사용�
 - 사진에서 실제로 보이는 것만 근거로 삼으세요. 사진으로 알 수 없는 맛이나 간은 추측하지 마세요.
 - 레시피의 결과물과 비교해 익힘 정도, 모양, 상태가 어떤지 봅니다.
 - score는 1~5점입니다. 5: 레시피대로 아주 잘 됨, 4: 잘 됨, 3: 보통, 2: 아쉬움이 큼, 1: 레시피와 많이 다름.
+- 기초 요리 스킬 연습 사진이면 요리 대신 연습 결과물(썬 재료의 크기·모양, 계량한 양, 익힘 정도 등)을 연습 방법과 비교합니다.
 - 사진에 해당 요리가 보이지 않거나 판단하기 어려우면 score를 1로 하고, summary에 그 이유를 말하고 다시 찍어 보라고 안내하세요.
 - summary는 2~3문장, improvements는 1~3개의 짧은 한 문장입니다. 초보자가 바로 따라 할 수 있게 구체적으로 쓰세요.
 - 모든 문장은 다정한 존댓말 한국어로 씁니다.`;
@@ -30,22 +44,23 @@ const SYSTEM_PROMPT = `당신은 요리를 처음 배우는 1인 가구 사용�
 let ai = null;
 const models = {};
 
-// 모델 이름마다 한 번만 만들어 두고 다시 씁니다.
-function getModel(name) {
+// 모델 이름(과 응답 모양)마다 한 번만 만들어 두고 다시 씁니다.
+function getModel(name, free = false) {
+  const cacheKey = `${name}${free ? ':free' : ''}`;
   if (!ai) {
     ai = getAI(auth.app, { backend: new GoogleAIBackend() });
   }
-  if (!models[name]) {
-    models[name] = getGenerativeModel(ai, {
+  if (!models[cacheKey]) {
+    models[cacheKey] = getGenerativeModel(ai, {
       model: name,
       systemInstruction: SYSTEM_PROMPT,
       generationConfig: {
         responseMimeType: 'application/json',
-        responseSchema: EVALUATION_SCHEMA,
+        responseSchema: free ? FREE_EVALUATION_SCHEMA : EVALUATION_SCHEMA,
       },
     });
   }
-  return models[name];
+  return models[cacheKey];
 }
 
 // 붐빔(500, 503), 한도 초과(429), 모델 없음(404), 시간 초과면 다음 시도로 넘어갑니다.
@@ -91,6 +106,10 @@ function describeRecipe(dishId) {
     return '';
   }
   const steps = recipe.steps.map((step, i) => `${i + 1}. ${step.text}`).join('\n');
+  if (recipe.kind === 'skill') {
+    // 기초 요리 스킬은 완성 요리가 아니라 연습 결과물 사진을 평가합니다.
+    return `기초 요리 스킬: ${recipe.name}\n준비물: ${recipe.ingredients.join(', ')}\n연습 방법:\n${steps}\n사진에 찍혀 있어야 할 것: ${recipe.photoGuide}`;
+  }
   return `요리 이름: ${recipe.name}\n재료: ${recipe.ingredients.join(', ')}\n만드는 방법:\n${steps}`;
 }
 
@@ -101,11 +120,47 @@ export async function evaluateDish(dishId, photoBase64) {
     throw new Error('no-firebase');
   }
 
+  const intro =
+    RECIPES[dishId]?.kind === 'skill'
+      ? '아래 기초 요리 스킬을 연습한 결과물 사진입니다. 연습 방법대로 잘 했는지 평가해 주세요.'
+      : '아래 레시피대로 만든 요리의 완성 사진입니다. 평가해 주세요.';
   const request = [
     { inlineData: { mimeType: 'image/jpeg', data: photoBase64 } },
-    { text: `아래 레시피대로 만든 요리의 완성 사진입니다. 평가해 주세요.\n\n${describeRecipe(dishId)}` },
+    { text: `${intro}\n\n${describeRecipe(dishId)}` },
   ];
+  const parsed = await generate(request, false);
+  return toEvaluation(parsed);
+}
 
+// AI 평가 탭에서 레시피 없이 올린 사진을 평가합니다. dishNameHint는 사용자가 적은 요리 이름(없으면 '').
+// 돌려주는 값 예: { dishName: '김치볶음밥', evaluation: { score, summary, improvements, source: 'ai' } }
+export async function evaluateFreePhoto(photoBase64, dishNameHint = '') {
+  if (!auth) {
+    throw new Error('no-firebase');
+  }
+  const hint = dishNameHint.trim();
+  const text = hint
+    ? `사용자가 직접 만든 "${hint}" 사진입니다. 정해진 레시피는 없으니, 일반적으로 잘 만든 ${hint}와 비교해 평가해 주세요. dishName은 "${hint}"로 하세요.`
+    : '사용자가 직접 만든 요리 사진입니다. 정해진 레시피는 없습니다. 먼저 어떤 요리인지 알아보고 dishName에 적은 뒤, 일반적으로 잘 만든 그 요리와 비교해 평가해 주세요. 요리를 알아볼 수 없으면 dishName을 "알 수 없는 요리"로 하세요.';
+  const request = [{ inlineData: { mimeType: 'image/jpeg', data: photoBase64 } }, { text }];
+  const parsed = await generate(request, true);
+  return {
+    dishName: String(parsed.dishName || hint || '알 수 없는 요리').slice(0, 30),
+    evaluation: toEvaluation(parsed),
+  };
+}
+
+function toEvaluation(parsed) {
+  return {
+    score: Math.min(5, Math.max(1, Math.round(Number(parsed.score) || 1))),
+    summary: String(parsed.summary ?? ''),
+    improvements: Array.isArray(parsed.improvements) ? parsed.improvements.slice(0, 3) : [],
+    source: 'ai',
+  };
+}
+
+// 모델 목록(AI_ATTEMPTS) 순서대로 시도해 JSON 답을 받아 옵니다.
+async function generate(request, free) {
   // 빠른 결과를 위해 시도마다 짧게 기다리고, 전체 시간이 지나면 멈춥니다.
   const deadline = Date.now() + AI_TOTAL_TIMEOUT_MS;
   let result;
@@ -116,7 +171,7 @@ export async function evaluateDish(dishId, photoBase64) {
       break;
     }
     try {
-      result = await withTimeout(getModel(name).generateContent(request), Math.min(AI_ATTEMPT_TIMEOUT_MS, remaining));
+      result = await withTimeout(getModel(name, free).generateContent(request), Math.min(AI_ATTEMPT_TIMEOUT_MS, remaining));
       break;
     } catch (e) {
       lastError = e;
@@ -130,13 +185,7 @@ export async function evaluateDish(dishId, photoBase64) {
     throw lastError ?? new Error('ai-timeout');
   }
 
-  const parsed = JSON.parse(result.response.text());
-  return {
-    score: Math.min(5, Math.max(1, Math.round(Number(parsed.score) || 1))),
-    summary: String(parsed.summary ?? ''),
-    improvements: Array.isArray(parsed.improvements) ? parsed.improvements.slice(0, 3) : [],
-    source: 'ai',
-  };
+  return JSON.parse(result.response.text());
 }
 
 export function getEvaluationErrorMessage(error) {

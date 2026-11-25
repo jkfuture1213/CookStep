@@ -2,10 +2,11 @@ import { signOut } from 'firebase/auth';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { auth } from '../firebase';
-import { colors } from '../theme';
+import { useThemedStyles } from '../theme';
 
-// 화면 오른쪽 위에 두는 작은 로그아웃 버튼입니다.
+// (지금은 쓰지 않음) 예전에 화면 오른쪽 위에 두던 로그아웃 버튼입니다. 로그아웃은 UserMenu 하단 메뉴로 옮겼습니다.
 export default function LogoutButton() {
+  const styles = useThemedStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -18,14 +19,15 @@ export default function LogoutButton() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) =>
+  StyleSheet.create({
   button: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1.5,
     borderColor: colors.orange,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   pressed: {
     opacity: 0.75,

@@ -92,6 +92,51 @@ export async function deleteCookedDish(cookedId) {
   await withTimeout(batch.commit(), SAVE_TIMEOUT_MS);
 }
 
+// ----- AI 평가 탭에서 레시피 없이 올린 사진의 평가 -----
+// 저장 위치: users/{uid}/freeEvaluations/{id} → { dishName, evaluation, createdAt, hasPhoto }
+//            users/{uid}/freePhotos/{id}      → { data: JPEG base64, createdAt }
+// 요리 기록(cookedDishes)과 따로 두어 칭호·단계 해제에는 영향을 주지 않습니다.
+export async function saveFreeEvaluation(dishName, evaluation, base64) {
+  const { db, uid } = getContext();
+  const ref = doc(collection(db, 'users', uid, 'freeEvaluations'));
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'users', uid, 'freePhotos', ref.id), { data: base64, createdAt: serverTimestamp() });
+  batch.set(ref, {
+    dishName,
+    evaluation: { ...evaluation, evaluatedAt: serverTimestamp() },
+    hasPhoto: true,
+    createdAt: serverTimestamp(),
+  });
+  await withTimeout(batch.commit(), PHOTO_SAVE_TIMEOUT_MS);
+  return ref.id;
+}
+
+// 돌려주는 값 예: [{ id, dishName, evaluation, createdAt: Date, hasPhoto }] (최신순)
+export async function loadFreeEvaluations() {
+  const { db, uid } = getContext();
+  const snapshot = await withTimeout(
+    getDocs(query(collection(db, 'users', uid, 'freeEvaluations'), orderBy('createdAt', 'desc'))),
+    SAVE_TIMEOUT_MS
+  );
+  return snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      dishName: data.dishName,
+      evaluation: data.evaluation,
+      hasPhoto: Boolean(data.hasPhoto),
+      createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : null,
+    };
+  });
+}
+
+export async function loadFreePhoto(id) {
+  const { db, uid } = getContext();
+  const snapshot = await getDoc(doc(db, 'users', uid, 'freePhotos', id));
+  const data = snapshot.exists() ? snapshot.data().data : null;
+  return data ? `data:image/jpeg;base64,${data}` : null;
+}
+
 // 요리 기록에 연결된 사진을 불러옵니다. 사진이 없으면 null.
 export async function loadCookedPhoto(cookedId) {
   const { db, uid } = getContext();
